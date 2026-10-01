@@ -1,0 +1,102 @@
+diff --git a/src/main/java/net/wimods/chestesp/ChestEspConfig.java b/src/main/java/net/wimods/chestesp/ChestEspConfig.java
+index 849007a..c34b0b0 100644
+--- a/src/main/java/net/wimods/chestesp/ChestEspConfig.java
++++ b/src/main/java/net/wimods/chestesp/ChestEspConfig.java
+@@ -106,6 +106,12 @@ public final class ChestEspConfig implements ConfigData
+ 	@ConfigEntry.Gui.Tooltip
+ 	public int furnace_color = 0xFF0000;
+ 	
++	public boolean include_spawners = false;
++	
++	@ConfigEntry.ColorPicker
++	@ConfigEntry.Gui.Tooltip
++	public int spawner_color = 0xFF0000;
++	
+ 	@ConfigEntry.Gui.Tooltip
+ 	public boolean plausible = true;
+ }
+diff --git a/src/main/java/net/wimods/chestesp/ChestEspGroupManager.java b/src/main/java/net/wimods/chestesp/ChestEspGroupManager.java
+index 217e6f4..c71bf4e 100644
+--- a/src/main/java/net/wimods/chestesp/ChestEspGroupManager.java
++++ b/src/main/java/net/wimods/chestesp/ChestEspGroupManager.java
+@@ -29,6 +29,7 @@ public final class ChestEspGroupManager
+ 	public final DispensersGroup dispensers;
+ 	public final CraftersGroup crafters;
+ 	public final FurnacesGroup furnaces;
++	public final SpawnersGroup spawners;
+ 	
+ 	public final List<ChestEspBlockGroup> blockGroups;
+ 	public final List<ChestEspEntityGroup> entityGroups;
+@@ -50,10 +51,11 @@ public final class ChestEspGroupManager
+ 		dispensers = new DispensersGroup(ch);
+ 		crafters = new CraftersGroup(ch);
+ 		furnaces = new FurnacesGroup(ch);
++		spawners = new SpawnersGroup(ch);
+ 		
+ 		blockGroups = List.of(normalChests, trapChests, enderChests, barrels,
+ 			pots, shulkerBoxes, hoppers, droppers, dispensers, crafters,
+-			furnaces);
++			furnaces, spawners);
+ 		
+ 		entityGroups = List.of(chestCarts, chestBoats, hopperCarts);
+ 		
+diff --git a/src/main/java/net/wimods/chestesp/groups/SpawnersGroup.java b/src/main/java/net/wimods/chestesp/groups/SpawnersGroup.java
+new file mode 100644
+index 0000000..935cdfb
+--- /dev/null
++++ b/src/main/java/net/wimods/chestesp/groups/SpawnersGroup.java
+@@ -0,0 +1,40 @@
++/*
++ * Copyright (c) 2023-2026 Wurst-Imperium and contributors.
++ *
++ * This source code is subject to the terms of the GNU General Public
++ * License, version 3. If a copy of the GPL was not distributed with this
++ * file, You can obtain one at: https://www.gnu.org/licenses/gpl-3.0.txt
++ */
++package net.wimods.chestesp.groups;
++
++import me.shedaniel.autoconfig.ConfigHolder;
++import net.minecraft.world.level.block.entity.BlockEntity;
++import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
++import net.wimods.chestesp.ChestEspBlockGroup;
++import net.wimods.chestesp.ChestEspConfig;
++
++public final class SpawnersGroup extends ChestEspBlockGroup
++{
++	public SpawnersGroup(ConfigHolder<ChestEspConfig> ch)
++	{
++		super(ch, "spawner");
++	}
++	
++	@Override
++	protected boolean isEnabled(ChestEspConfig c)
++	{
++		return c.include_spawners;
++	}
++	
++	@Override
++	protected int getColor(ChestEspConfig c)
++	{
++		return c.spawner_color;
++	}
++	
++	@Override
++	public boolean matches(BlockEntity be)
++	{
++		return be instanceof SpawnerBlockEntity;
++	}
++}
+diff --git a/src/main/resources/assets/chestesp/lang/en_us.json b/src/main/resources/assets/chestesp/lang/en_us.json
+index 3a17201..83b7669 100644
+--- a/src/main/resources/assets/chestesp/lang/en_us.json
++++ b/src/main/resources/assets/chestesp/lang/en_us.json
+@@ -51,6 +51,9 @@
+   "text.autoconfig.chestesp.option.include_furnaces": "Include furnaces",
+   "text.autoconfig.chestesp.option.furnace_color": "Furnace color",
+   "text.autoconfig.chestesp.option.furnace_color.@Tooltip": "Furnaces, smokers, and blast furnaces will be highlighted in this color.",
++  "text.autoconfig.chestesp.option.include_spawners": "Include spawners",
++  "text.autoconfig.chestesp.option.spawner_color": "Spawner color",
++  "text.autoconfig.chestesp.option.spawner_color.@Tooltip": "Monster spawners will be highlighted in this color.",
+   "text.autoconfig.chestesp.option.plausible": "Help improve ChestESP",
+   "text.autoconfig.chestesp.option.plausible.@Tooltip": "Help me improve ChestESP by contributing to its anonymous usage statistics.\nThese statistics help to answer questions like:\n- \"how many people are still on [old Minecraft version], do I need to backport this?\"\n- \"what percentage of installations support [shiny new feature], is it too early to use that?\"\n- \"is there a setting that most players change? that should probably be the new default.\"\nNone of the data is personal or identifiable. None of it is sold.\nAll of it stays in the EU (I'm self-hosting Plausible in Germany).\nThere are no cookies or persistent identifiers (see plausible.io for how that works).\nHere is the full list of what's collected:\n- ChestESP version\n- Minecraft version\n- Fabric/NeoForge version\n- OS version\n- Cloth Config version\n- Mod Menu version (if installed)\n- Sodium version (if installed)\n- Sinytra Connector version (if installed)\n- ChestESP settings\n- Game type: singleplayer/multiplayer/Realms/LAN\n (without revealing the world name or server address)\n- Language\nOf course you can verify all of this in the source code.\nLook for this file: net.wimods.chestesp.util.PlausibleAnalytics.java"
+ }

@@ -1,0 +1,336 @@
+diff --git a/src/main/java/net/wimods/chestesp/ChestEspConfig.java b/src/main/java/net/wimods/chestesp/ChestEspConfig.java
+index 3f25fb7..7adf295 100644
+--- a/src/main/java/net/wimods/chestesp/ChestEspConfig.java
++++ b/src/main/java/net/wimods/chestesp/ChestEspConfig.java
+@@ -20,7 +20,15 @@ public final class ChestEspConfig implements ConfigData
+ 	
+ 	@ConfigEntry.Gui.EnumHandler(option = EnumDisplayOption.BUTTON)
+ 	@ConfigEntry.Gui.Tooltip
+-	public ChestEspStyle style = ChestEspStyle.BOXES;
++	public ChestEspStyle block_style = ChestEspStyle.BOXES;
++	
++	@ConfigEntry.Gui.EnumHandler(option = EnumDisplayOption.BUTTON)
++	@ConfigEntry.Gui.Tooltip
++	public ChestEspStyle mob_style = ChestEspStyle.BOXES;
++	
++	@ConfigEntry.Gui.EnumHandler(option = EnumDisplayOption.BUTTON)
++	@ConfigEntry.Gui.Tooltip
++	public ChestEspStyle player_style = ChestEspStyle.BOXES;
+ 	
+ 	public boolean include_basic_chests = true;
+ 	
+@@ -116,13 +124,13 @@ public final class ChestEspConfig implements ConfigData
+ 	
+ 	@ConfigEntry.ColorPicker
+ 	@ConfigEntry.Gui.Tooltip
+-	public int mob_color = 0xFF0000;
++	public int mob_color = 0x00008B;
+ 	
+ 	public boolean include_players = false;
+ 	
+ 	@ConfigEntry.ColorPicker
+ 	@ConfigEntry.Gui.Tooltip
+-	public int player_color = 0xFF0000;
++	public int player_color = 0xFFFFFF;
+ 	
+ 	@ConfigEntry.Gui.Tooltip
+ 	public boolean plausible = true;
+diff --git a/src/main/java/net/wimods/chestesp/ChestEspEntityGroup.java b/src/main/java/net/wimods/chestesp/ChestEspEntityGroup.java
+index 0e4c169..556c278 100644
+--- a/src/main/java/net/wimods/chestesp/ChestEspEntityGroup.java
++++ b/src/main/java/net/wimods/chestesp/ChestEspEntityGroup.java
+@@ -8,6 +8,7 @@
+ package net.wimods.chestesp;
+ 
+ import java.util.ArrayList;
++import java.util.List;
+ 
+ import me.shedaniel.autoconfig.ConfigHolder;
+ import net.minecraft.world.entity.Entity;
+@@ -33,6 +34,11 @@ public abstract class ChestEspEntityGroup extends ChestEspGroup
+ 		entities.add(e);
+ 	}
+ 	
++	public final List<Entity> getEntities()
++	{
++		return entities;
++	}
++	
+ 	@Override
+ 	public void clear()
+ 	{
+diff --git a/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java b/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java
+index cee45a9..245a963 100644
+--- a/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java
++++ b/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java
+@@ -26,6 +26,7 @@ public final class ChestEspMenuScreen extends Screen
+ 	private static final int PADDING = 4;
+ 	
+ 	// Remembers expand/collapse state across re-opens of the menu.
++	private static boolean stylesExpanded = false;
+ 	private static boolean blockEntitiesExpanded = false;
+ 	
+ 	public ChestEspMenuScreen()
+@@ -43,30 +44,68 @@ public final class ChestEspMenuScreen extends Screen
+ 		int x = PADDING;
+ 		int y = PADDING;
+ 		
+-		y = addStyleButton(ch, x, y);
++		y = addStylesSection(ch, x, y);
+ 		y = addBlockEntitiesSection(groups, x, y);
+ 		y = addToggleRow(groups.mobs, "Mobs ESP", x, y);
+ 		addToggleRow(groups.players, "Players ESP", x, y);
+ 	}
+ 	
+-	// Global render style: boxes only, lines only, or both.
+-	private int addStyleButton(ConfigHolder<ChestEspConfig> ch, int x, int y)
++	// Collapsible section with one style (boxes/lines/both) per ESP
++	// category: block entities, mobs, and players.
++	private int addStylesSection(ConfigHolder<ChestEspConfig> ch, int x,
++		int y)
++	{
++		addRenderableWidget(Button.builder(stylesHeaderLabel(), btn -> {
++			stylesExpanded = !stylesExpanded;
++			refreshWidgets();
++		}).bounds(x, y, WIDTH, ROW_HEIGHT).build());
++		y += ROW_HEIGHT + PADDING;
++		
++		if(!stylesExpanded)
++			return y;
++		
++		y = addStyleRow(ch, "Block Entities", x + PADDING, y,
++			WIDTH - PADDING * 2, c -> c.block_style,
++			(c, style) -> c.block_style = style);
++		y = addStyleRow(ch, "Mobs", x + PADDING, y, WIDTH - PADDING * 2,
++			c -> c.mob_style, (c, style) -> c.mob_style = style);
++		y = addStyleRow(ch, "Players", x + PADDING, y, WIDTH - PADDING * 2,
++			c -> c.player_style, (c, style) -> c.player_style = style);
++		
++		return y + PADDING;
++	}
++	
++	private interface StyleGetter
++	{
++		ChestEspStyle get(ChestEspConfig c);
++	}
++	
++	private interface StyleSetter
+ 	{
+-		addRenderableWidget(CycleButton.<ChestEspStyle> builder(
+-			style -> Component.translatable(style.toString()), ch.get().style)
+-			.withValues(ChestEspStyle.values()).create(x, y, WIDTH, ROW_HEIGHT,
+-				Component.literal("Style"), (btn, style) -> {
+-					ch.get().style = style;
++		void set(ChestEspConfig c, ChestEspStyle style);
++	}
++	
++	private int addStyleRow(ConfigHolder<ChestEspConfig> ch, String label,
++		int x, int y, int width, StyleGetter getter, StyleSetter setter)
++	{
++		addRenderableWidget(CycleButton
++			.<ChestEspStyle> builder(
++				style -> Component.translatable(style.toString()),
++				getter.get(ch.get()))
++			.withValues(ChestEspStyle.values())
++			.create(x, y, width, ROW_HEIGHT, Component.literal(label),
++				(btn, style) -> {
++					setter.set(ch.get(), style);
+ 					ch.save();
+ 				}));
+ 		
+-		return y + ROW_HEIGHT + PADDING;
++		return y + ROW_HEIGHT + 2;
+ 	}
+ 	
+ 	private int addBlockEntitiesSection(ChestEspGroupManager groups, int x,
+ 		int y)
+ 	{
+-		addRenderableWidget(Button.builder(headerLabel(), btn -> {
++		addRenderableWidget(Button.builder(blockEntitiesHeaderLabel(), btn -> {
+ 			blockEntitiesExpanded = !blockEntitiesExpanded;
+ 			refreshWidgets();
+ 		}).bounds(x, y, WIDTH, ROW_HEIGHT).build());
+@@ -110,7 +149,13 @@ public final class ChestEspMenuScreen extends Screen
+ 		init();
+ 	}
+ 	
+-	private Component headerLabel()
++	private Component stylesHeaderLabel()
++	{
++		String arrow = stylesExpanded ? "\u25BC" : "\u25B6";
++		return Component.literal(arrow + " Styles ESP");
++	}
++	
++	private Component blockEntitiesHeaderLabel()
+ 	{
+ 		String arrow = blockEntitiesExpanded ? "\u25BC" : "\u25B6";
+ 		return Component.literal(arrow + " ESP Block Entities");
+diff --git a/src/main/java/net/wimods/chestesp/ChestEspMod.java b/src/main/java/net/wimods/chestesp/ChestEspMod.java
+index fc6948d..efc3e5a 100644
+--- a/src/main/java/net/wimods/chestesp/ChestEspMod.java
++++ b/src/main/java/net/wimods/chestesp/ChestEspMod.java
+@@ -22,9 +22,11 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+ import net.minecraft.client.KeyMapping;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.resources.Identifier;
++import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.Vec3;
+ import net.wimods.chestesp.util.ChunkUtils;
++import net.wimods.chestesp.util.EntityUtils;
+ import net.wimods.chestesp.util.PlausibleAnalytics;
+ import net.wimods.chestesp.util.RenderUtils;
+ import org.lwjgl.glfw.GLFW;
+@@ -114,9 +116,24 @@ public final class ChestEspMod
+ 			e -> groups.entityGroups.forEach(group -> group.addIfMatches(e)));
+ 	}
+ 	
++	public ChestEspStyle getStyleFor(ChestEspGroup group)
++	{
++		ChestEspConfig c = configHolder.get();
++		if(group == groups.mobs)
++			return c.mob_style;
++		if(group == groups.players)
++			return c.player_style;
++		
++		return c.block_style;
++	}
++	
+ 	public boolean shouldCancelViewBobbing()
+ 	{
+-		return enabled && configHolder.get().style.hasLines();
++		if(!enabled)
++			return false;
++		
++		return groups.allGroups.stream().filter(ChestEspGroup::isEnabled)
++			.anyMatch(g -> getStyleFor(g).hasLines());
+ 	}
+ 	
+ 	public void onRender(PoseStack matrixStack, float partialTicks)
+@@ -124,19 +141,16 @@ public final class ChestEspMod
+ 		groups.entityGroups.stream().filter(ChestEspGroup::isEnabled)
+ 			.forEach(g -> g.updateBoxes(partialTicks));
+ 		
+-		ChestEspStyle style = configHolder.get().style;
+-		if(style.hasBoxes())
+-			renderBoxes(matrixStack);
+-		
+-		if(style.hasLines())
+-			renderTracers(matrixStack, partialTicks);
++		renderBoxes(matrixStack);
++		renderTracers(matrixStack, partialTicks);
++		renderMobNames(matrixStack, partialTicks);
+ 	}
+ 	
+ 	private void renderBoxes(PoseStack matrixStack)
+ 	{
+ 		for(ChestEspGroup group : groups.allGroups)
+ 		{
+-			if(!group.isEnabled())
++			if(!group.isEnabled() || !getStyleFor(group).hasBoxes())
+ 				continue;
+ 			
+ 			List<AABB> boxes = group.getBoxes();
+@@ -153,7 +167,7 @@ public final class ChestEspMod
+ 	{
+ 		for(ChestEspGroup group : groups.allGroups)
+ 		{
+-			if(!group.isEnabled())
++			if(!group.isEnabled() || !getStyleFor(group).hasLines())
+ 				continue;
+ 			
+ 			List<AABB> boxes = group.getBoxes();
+@@ -165,6 +179,24 @@ public final class ChestEspMod
+ 		}
+ 	}
+ 	
++	// Draws the mob's display name above its ESP box, in the same color as
++	// the mob ESP.
++	private void renderMobNames(PoseStack matrixStack, float partialTicks)
++	{
++		ChestEspEntityGroup mobs = groups.mobs;
++		if(!mobs.isEnabled())
++			return;
++		
++		int color = mobs.getColorI(0xFF);
++		for(Entity e : mobs.getEntities())
++		{
++			Vec3 pos = EntityUtils.getLerpedPos(e, partialTicks)
++				.add(0, e.getBbHeight() + 0.5, 0);
++			RenderUtils.drawText(matrixStack, pos, e.getDisplayName().getString(),
++				color);
++		}
++	}
++	
+ 	public static ChestEspMod getInstance()
+ 	{
+ 		return ChestEspModInitializer.getInstance();
+diff --git a/src/main/java/net/wimods/chestesp/util/RenderUtils.java b/src/main/java/net/wimods/chestesp/util/RenderUtils.java
+index 55dbc4a..ca4a61f 100644
+--- a/src/main/java/net/wimods/chestesp/util/RenderUtils.java
++++ b/src/main/java/net/wimods/chestesp/util/RenderUtils.java
+@@ -12,10 +12,12 @@ import com.mojang.blaze3d.vertex.PoseStack.Pose;
+ import com.mojang.blaze3d.vertex.VertexConsumer;
+ import java.util.List;
+ 
++import org.joml.Matrix4f;
+ import org.joml.Vector3f;
+ import net.minecraft.client.Camera;
+ import net.minecraft.client.CameraType;
+ import net.minecraft.client.Minecraft;
++import net.minecraft.client.gui.Font;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.rendertype.RenderType;
+ import net.minecraft.world.phys.AABB;
+@@ -238,4 +240,32 @@ public enum RenderUtils
+ 		buffer.addVertex(entry, x2, y2, z2).setColor(color)
+ 			.setNormal(entry, 0, 1, 0).setLineWidth(2);
+ 	}
++	
++	/**
++	 * Draws a billboarded (always facing the camera) label at the given
++	 * world position, similar to a vanilla entity name tag.
++	 */
++	public static void drawText(PoseStack matrices, Vec3 pos, String text,
++		int color)
++	{
++		MultiBufferSource.BufferSource vcp = getVCP();
++		Font font = MC.font;
++		
++		matrices.pushPose();
++		
++		Vec3 renderPos = pos.add(getCameraPos().reverse());
++		matrices.translate(renderPos.x, renderPos.y, renderPos.z);
++		matrices.mulPose(MC.gameRenderer.getMainCamera().rotation());
++		matrices.scale(-0.025F, -0.025F, 0.025F);
++		
++		Matrix4f matrix = matrices.last().pose();
++		float x = -font.width(text) / 2F;
++		int bgColor = (int)(0.25F * 255.0F) << 24;
++		
++		font.drawInBatch(text, x, 0, color, false, matrix, vcp,
++			Font.DisplayMode.SEE_THROUGH, bgColor, 0xF000F0);
++		
++		vcp.endBatch();
++		matrices.popPose();
++	}
+ }
+diff --git a/src/main/resources/assets/chestesp/lang/en_us.json b/src/main/resources/assets/chestesp/lang/en_us.json
+index 744b337..233a7d7 100644
+--- a/src/main/resources/assets/chestesp/lang/en_us.json
++++ b/src/main/resources/assets/chestesp/lang/en_us.json
+@@ -5,8 +5,12 @@
+   "text.autoconfig.chestesp.title": "ChestESP Settings",
+   "text.autoconfig.chestesp.option.enable": "Enable ChestESP",
+   "text.autoconfig.chestesp.option.enable.@Tooltip": "This setting allows you to completely disable ChestESP.\nProTip: If you go to Options > Controls > Key Binds, you can set up a keybind to do this more quickly.",
+-  "text.autoconfig.chestesp.option.style": "Style",
+-  "text.autoconfig.chestesp.option.style.@Tooltip": "Controls how ChestESP will highlight chests.\nBoxes only: Chests will be highlighted with a colored box around them.\nLines only: Chests will be highlighted with a line going from your crosshair to the chest.\nLines and boxes: Both of the above.",
++  "text.autoconfig.chestesp.option.block_style": "Block entities style",
++  "text.autoconfig.chestesp.option.block_style.@Tooltip": "Controls how ChestESP will highlight block entities (chests, furnaces, spawners, etc).\nBoxes only: They will be highlighted with a colored box around them.\nLines only: They will be highlighted with a line going from your crosshair to them.\nLines and boxes: Both of the above.",
++  "text.autoconfig.chestesp.option.mob_style": "Mobs style",
++  "text.autoconfig.chestesp.option.mob_style.@Tooltip": "Controls how ChestESP will highlight mobs.\nBoxes only: Mobs will be highlighted with a colored box around them.\nLines only: Mobs will be highlighted with a line going from your crosshair to them.\nLines and boxes: Both of the above.",
++  "text.autoconfig.chestesp.option.player_style": "Players style",
++  "text.autoconfig.chestesp.option.player_style.@Tooltip": "Controls how ChestESP will highlight other players.\nBoxes only: Players will be highlighted with a colored box around them.\nLines only: Players will be highlighted with a line going from your crosshair to them.\nLines and boxes: Both of the above.",
+   "text.autoconfig.chestesp.option.style.boxes": "Boxes only",
+   "text.autoconfig.chestesp.option.style.lines": "Lines only",
+   "text.autoconfig.chestesp.option.style.lines_and_boxes": "Lines and boxes",

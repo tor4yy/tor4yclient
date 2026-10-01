@@ -1,0 +1,22 @@
+diff --git a/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java b/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java
+index 39bfc8a..cee45a9 100644
+--- a/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java
++++ b/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java
+@@ -52,13 +52,10 @@ public final class ChestEspMenuScreen extends Screen
+ 	// Global render style: boxes only, lines only, or both.
+ 	private int addStyleButton(ConfigHolder<ChestEspConfig> ch, int x, int y)
+ 	{
+-		addRenderableWidget(CycleButton
+-			.<ChestEspStyle>builder(
+-				style -> Component.translatable(style.toString()),
+-				ch.get().style)
+-			.withValues(ChestEspStyle.values())
+-			.create(x, y, WIDTH, ROW_HEIGHT, Component.literal("Style"),
+-				(btn, style) -> {
++		addRenderableWidget(CycleButton.<ChestEspStyle> builder(
++			style -> Component.translatable(style.toString()), ch.get().style)
++			.withValues(ChestEspStyle.values()).create(x, y, WIDTH, ROW_HEIGHT,
++				Component.literal("Style"), (btn, style) -> {
+ 					ch.get().style = style;
+ 					ch.save();
+ 				}));

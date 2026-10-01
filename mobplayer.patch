@@ -1,0 +1,279 @@
+diff --git a/src/main/java/net/wimods/chestesp/ChestEspConfig.java b/src/main/java/net/wimods/chestesp/ChestEspConfig.java
+index c34b0b0..3f25fb7 100644
+--- a/src/main/java/net/wimods/chestesp/ChestEspConfig.java
++++ b/src/main/java/net/wimods/chestesp/ChestEspConfig.java
+@@ -112,6 +112,18 @@ public final class ChestEspConfig implements ConfigData
+ 	@ConfigEntry.Gui.Tooltip
+ 	public int spawner_color = 0xFF0000;
+ 	
++	public boolean include_mobs = false;
++	
++	@ConfigEntry.ColorPicker
++	@ConfigEntry.Gui.Tooltip
++	public int mob_color = 0xFF0000;
++	
++	public boolean include_players = false;
++	
++	@ConfigEntry.ColorPicker
++	@ConfigEntry.Gui.Tooltip
++	public int player_color = 0xFF0000;
++	
+ 	@ConfigEntry.Gui.Tooltip
+ 	public boolean plausible = true;
+ }
+diff --git a/src/main/java/net/wimods/chestesp/ChestEspGroupManager.java b/src/main/java/net/wimods/chestesp/ChestEspGroupManager.java
+index c71bf4e..cd979de 100644
+--- a/src/main/java/net/wimods/chestesp/ChestEspGroupManager.java
++++ b/src/main/java/net/wimods/chestesp/ChestEspGroupManager.java
+@@ -30,6 +30,8 @@ public final class ChestEspGroupManager
+ 	public final CraftersGroup crafters;
+ 	public final FurnacesGroup furnaces;
+ 	public final SpawnersGroup spawners;
++	public final MobsGroup mobs;
++	public final PlayersGroup players;
+ 	
+ 	public final List<ChestEspBlockGroup> blockGroups;
+ 	public final List<ChestEspEntityGroup> entityGroups;
+@@ -52,12 +54,15 @@ public final class ChestEspGroupManager
+ 		crafters = new CraftersGroup(ch);
+ 		furnaces = new FurnacesGroup(ch);
+ 		spawners = new SpawnersGroup(ch);
++		mobs = new MobsGroup(ch);
++		players = new PlayersGroup(ch);
+ 		
+ 		blockGroups = List.of(normalChests, trapChests, enderChests, barrels,
+ 			pots, shulkerBoxes, hoppers, droppers, dispensers, crafters,
+ 			furnaces, spawners);
+ 		
+-		entityGroups = List.of(chestCarts, chestBoats, hopperCarts);
++		entityGroups = List.of(chestCarts, chestBoats, hopperCarts, mobs,
++			players);
+ 		
+ 		allGroups =
+ 			Stream.concat(blockGroups.stream(), entityGroups.stream()).toList();
+diff --git a/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java b/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java
+index 966ec59..85dd8a4 100644
+--- a/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java
++++ b/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java
+@@ -7,6 +7,7 @@
+  */
+ package net.wimods.chestesp;
+ 
++import me.shedaniel.autoconfig.ConfigHolder;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.client.gui.components.CycleButton;
+@@ -35,28 +36,75 @@ public final class ChestEspMenuScreen extends Screen
+ 	@Override
+ 	protected void init()
+ 	{
++		ChestEspMod mod = ChestEspMod.getInstance();
++		ConfigHolder<ChestEspConfig> ch = mod.getConfigHolder();
++		ChestEspGroupManager groups = mod.getGroups();
++		
+ 		int x = PADDING;
+ 		int y = PADDING;
+ 		
++		y = addStyleButton(ch, x, y);
++		y = addBlockEntitiesSection(groups, x, y);
++		y = addToggleRow(groups.mobs, "Mobs ESP", x, y);
++		addToggleRow(groups.players, "Players ESP", x, y);
++	}
++	
++	// Global render style: boxes only, lines only, or both.
++	private int addStyleButton(ConfigHolder<ChestEspConfig> ch, int x, int y)
++	{
++		addRenderableWidget(CycleButton
++			.<ChestEspStyle>builder(
++				style -> Component.translatable(style.toString()))
++			.withValues(ChestEspStyle.values())
++			.withInitialValue(ch.get().style)
++			.create(x, y, WIDTH, ROW_HEIGHT, Component.literal("Style"),
++				(btn, style) -> {
++					ch.get().style = style;
++					ch.save();
++				}));
++		
++		return y + ROW_HEIGHT + PADDING;
++	}
++	
++	private int addBlockEntitiesSection(ChestEspGroupManager groups, int x,
++		int y)
++	{
+ 		addRenderableWidget(Button.builder(headerLabel(), btn -> {
+ 			blockEntitiesExpanded = !blockEntitiesExpanded;
+ 			refreshWidgets();
+ 		}).bounds(x, y, WIDTH, ROW_HEIGHT).build());
+ 		y += ROW_HEIGHT + PADDING;
+ 		
+-		if(blockEntitiesExpanded)
++		if(!blockEntitiesExpanded)
++			return y;
++		
++		for(ChestEspGroup group : groups.allGroups)
+ 		{
+-			ChestEspGroupManager groups = ChestEspMod.getInstance().getGroups();
++			// Mobs and players get their own toggles, separate from this
++			// category.
++			if(group == groups.mobs || group == groups.players)
++				continue;
+ 			
+-			for(ChestEspGroup group : groups.allGroups)
+-			{
+-				addRenderableWidget(CycleButton.onOffBuilder(group.isEnabled())
+-					.create(x + PADDING, y, WIDTH - PADDING * 2, ROW_HEIGHT,
+-						Component.literal(displayName(group.getName())),
+-						(btn, enabled) -> group.setEnabled(enabled)));
+-				y += ROW_HEIGHT + 2;
+-			}
++			y = addToggleRow(group, displayName(group.getName()), x + PADDING,
++				y, WIDTH - PADDING * 2);
+ 		}
++		
++		return y + PADDING;
++	}
++	
++	private int addToggleRow(ChestEspGroup group, String label, int x, int y)
++	{
++		return addToggleRow(group, label, x, y, WIDTH);
++	}
++	
++	private int addToggleRow(ChestEspGroup group, String label, int x, int y,
++		int width)
++	{
++		addRenderableWidget(CycleButton.onOffBuilder(group.isEnabled())
++			.create(x, y, width, ROW_HEIGHT, Component.literal(label),
++				(btn, enabled) -> group.setEnabled(enabled)));
++		
++		return y + ROW_HEIGHT + 2;
+ 	}
+ 	
+ 	private void refreshWidgets()
+diff --git a/src/main/java/net/wimods/chestesp/groups/MobsGroup.java b/src/main/java/net/wimods/chestesp/groups/MobsGroup.java
+new file mode 100644
+index 0000000..331e038
+--- /dev/null
++++ b/src/main/java/net/wimods/chestesp/groups/MobsGroup.java
+@@ -0,0 +1,46 @@
++/*
++ * Copyright (c) 2023-2026 Wurst-Imperium and contributors.
++ *
++ * This source code is subject to the terms of the GNU General Public
++ * License, version 3. If a copy of the GPL was not distributed with this
++ * file, You can obtain one at: https://www.gnu.org/licenses/gpl-3.0.txt
++ */
++package net.wimods.chestesp.groups;
++
++import me.shedaniel.autoconfig.ConfigHolder;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.Mob;
++import net.wimods.chestesp.ChestEspConfig;
++import net.wimods.chestesp.ChestEspEntityGroup;
++
++public final class MobsGroup extends ChestEspEntityGroup
++{
++	public MobsGroup(ConfigHolder<ChestEspConfig> ch)
++	{
++		super(ch, "mob");
++	}
++	
++	@Override
++	protected boolean isEnabled(ChestEspConfig c)
++	{
++		return c.include_mobs;
++	}
++	
++	@Override
++	protected void setEnabled(ChestEspConfig c, boolean enabled)
++	{
++		c.include_mobs = enabled;
++	}
++	
++	@Override
++	protected int getColor(ChestEspConfig c)
++	{
++		return c.mob_color;
++	}
++	
++	@Override
++	public boolean matches(Entity e)
++	{
++		return e instanceof Mob && e.isAlive();
++	}
++}
+diff --git a/src/main/java/net/wimods/chestesp/groups/PlayersGroup.java b/src/main/java/net/wimods/chestesp/groups/PlayersGroup.java
+new file mode 100644
+index 0000000..d066f22
+--- /dev/null
++++ b/src/main/java/net/wimods/chestesp/groups/PlayersGroup.java
+@@ -0,0 +1,53 @@
++/*
++ * Copyright (c) 2023-2026 Wurst-Imperium and contributors.
++ *
++ * This source code is subject to the terms of the GNU General Public
++ * License, version 3. If a copy of the GPL was not distributed with this
++ * file, You can obtain one at: https://www.gnu.org/licenses/gpl-3.0.txt
++ */
++package net.wimods.chestesp.groups;
++
++import me.shedaniel.autoconfig.ConfigHolder;
++import net.minecraft.client.Minecraft;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.player.Player;
++import net.wimods.chestesp.ChestEspConfig;
++import net.wimods.chestesp.ChestEspEntityGroup;
++
++public final class PlayersGroup extends ChestEspEntityGroup
++{
++	private static final Minecraft MC = Minecraft.getInstance();
++	
++	public PlayersGroup(ConfigHolder<ChestEspConfig> ch)
++	{
++		super(ch, "player");
++	}
++	
++	@Override
++	protected boolean isEnabled(ChestEspConfig c)
++	{
++		return c.include_players;
++	}
++	
++	@Override
++	protected void setEnabled(ChestEspConfig c, boolean enabled)
++	{
++		c.include_players = enabled;
++	}
++	
++	@Override
++	protected int getColor(ChestEspConfig c)
++	{
++		return c.player_color;
++	}
++	
++	@Override
++	public boolean matches(Entity e)
++	{
++		// Skip the local player, there's no need to highlight yourself.
++		if(e == MC.player)
++			return false;
++		
++		return e instanceof Player && e.isAlive();
++	}
++}
+diff --git a/src/main/resources/assets/chestesp/lang/en_us.json b/src/main/resources/assets/chestesp/lang/en_us.json
+index 4591a7f..744b337 100644
+--- a/src/main/resources/assets/chestesp/lang/en_us.json
++++ b/src/main/resources/assets/chestesp/lang/en_us.json
+@@ -55,6 +55,12 @@
+   "text.autoconfig.chestesp.option.include_spawners": "Include spawners",
+   "text.autoconfig.chestesp.option.spawner_color": "Spawner color",
+   "text.autoconfig.chestesp.option.spawner_color.@Tooltip": "Monster spawners will be highlighted in this color.",
++  "text.autoconfig.chestesp.option.include_mobs": "Include mobs",
++  "text.autoconfig.chestesp.option.mob_color": "Mob color",
++  "text.autoconfig.chestesp.option.mob_color.@Tooltip": "Mobs will be highlighted in this color.",
++  "text.autoconfig.chestesp.option.include_players": "Include players",
++  "text.autoconfig.chestesp.option.player_color": "Player color",
++  "text.autoconfig.chestesp.option.player_color.@Tooltip": "Other players will be highlighted in this color.",
+   "text.autoconfig.chestesp.option.plausible": "Help improve ChestESP",
+   "text.autoconfig.chestesp.option.plausible.@Tooltip": "Help me improve ChestESP by contributing to its anonymous usage statistics.\nThese statistics help to answer questions like:\n- \"how many people are still on [old Minecraft version], do I need to backport this?\"\n- \"what percentage of installations support [shiny new feature], is it too early to use that?\"\n- \"is there a setting that most players change? that should probably be the new default.\"\nNone of the data is personal or identifiable. None of it is sold.\nAll of it stays in the EU (I'm self-hosting Plausible in Germany).\nThere are no cookies or persistent identifiers (see plausible.io for how that works).\nHere is the full list of what's collected:\n- ChestESP version\n- Minecraft version\n- Fabric/NeoForge version\n- OS version\n- Cloth Config version\n- Mod Menu version (if installed)\n- Sodium version (if installed)\n- Sinytra Connector version (if installed)\n- ChestESP settings\n- Game type: singleplayer/multiplayer/Realms/LAN\n (without revealing the world name or server address)\n- Language\nOf course you can verify all of this in the source code.\nLook for this file: net.wimods.chestesp.util.PlausibleAnalytics.java"
+ }

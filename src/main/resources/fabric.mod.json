@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "tor4yclient",
+  "version": "${version}",
+  "name": "tor4yclient",
+  "description": "ESP for block entities, mobs and players, each with its own on/off and style, plus a hotbar-cycling hotkey. Fully configured in-game with no ModMenu required (default key: backslash).",
+  "authors": [
+    "tor4y"
+  ],
+  "license": "GPL-3.0-or-later",
+  "icon": "assets/chestesp/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "net.wimods.chestesp.ChestEspModInitializer"
+    ]
+  },
+  "mixins": [
+    "chestesp.mixins.json"
+  ],
+  "accessWidener": "chestesp.accesswidener",
+  "depends": {
+    "fabricloader": ">=0.17.3",
+    "fabric-api": ">=0.140.0",
+    "cloth-config": "^21.11.150",
+    "minecraft": "~1.21.11-beta.1",
+    "java": ">=21"
+  },
+  "suggests": {
+    "modmenu": "*",
+    "wi_zoom": "*",
+    "cameranoclip": "*",
+    "mo_glass": "*"
+  },
+  "breaks": {
+    "wurst": "*"
+  }
+}

@@ -1,0 +1,55 @@
+diff --git a/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java b/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java
+index 43bee3b..966ec59 100644
+--- a/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java
++++ b/src/main/java/net/wimods/chestesp/ChestEspMenuScreen.java
+@@ -38,13 +38,10 @@ public final class ChestEspMenuScreen extends Screen
+ 		int x = PADDING;
+ 		int y = PADDING;
+ 		
+-		addRenderableWidget(Button
+-			.builder(headerLabel(), btn -> {
+-				blockEntitiesExpanded = !blockEntitiesExpanded;
+-				rebuildWidgets();
+-			})
+-			.bounds(x, y, WIDTH, ROW_HEIGHT)
+-			.build());
++		addRenderableWidget(Button.builder(headerLabel(), btn -> {
++			blockEntitiesExpanded = !blockEntitiesExpanded;
++			refreshWidgets();
++		}).bounds(x, y, WIDTH, ROW_HEIGHT).build());
+ 		y += ROW_HEIGHT + PADDING;
+ 		
+ 		if(blockEntitiesExpanded)
+@@ -53,8 +50,7 @@ public final class ChestEspMenuScreen extends Screen
+ 			
+ 			for(ChestEspGroup group : groups.allGroups)
+ 			{
+-				addRenderableWidget(CycleButton
+-					.onOffBuilder(group.isEnabled())
++				addRenderableWidget(CycleButton.onOffBuilder(group.isEnabled())
+ 					.create(x + PADDING, y, WIDTH - PADDING * 2, ROW_HEIGHT,
+ 						Component.literal(displayName(group.getName())),
+ 						(btn, enabled) -> group.setEnabled(enabled)));
+@@ -63,7 +59,7 @@ public final class ChestEspMenuScreen extends Screen
+ 		}
+ 	}
+ 	
+-	private void rebuildWidgets()
++	private void refreshWidgets()
+ 	{
+ 		clearWidgets();
+ 		init();
+diff --git a/src/main/java/net/wimods/chestesp/ChestEspMod.java b/src/main/java/net/wimods/chestesp/ChestEspMod.java
+index e16dd94..7f86ebc 100644
+--- a/src/main/java/net/wimods/chestesp/ChestEspMod.java
++++ b/src/main/java/net/wimods/chestesp/ChestEspMod.java
+@@ -58,7 +58,8 @@ public final class ChestEspMod
+ 				InputConstants.UNKNOWN.getValue(), kbCategory));
+ 		menuKey = KeyBindingHelper
+ 			.registerKeyBinding(new KeyMapping("key.chestesp.menu",
+-				InputConstants.Type.KEYSYM.getOrCreate(GLFW.GLFW_KEY_BACKSLASH),
++				InputConstants.Type.KEYSYM.getOrCreate(GLFW.GLFW_KEY_BACKSLASH)
++					.getValue(),
+ 				kbCategory));
+ 		
+ 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
