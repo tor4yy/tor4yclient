@@ -52,6 +52,7 @@ public final class ChestEspMod
 	private final ChestEspSpawnerFinder spawnerFinder =
 		new ChestEspSpawnerFinder();
 	private final ChestEspAutoRtp autoRtp = new ChestEspAutoRtp();
+	private final ChestEspAutoTrade autoTrade = new ChestEspAutoTrade();
 	private final KeyMapping toggleKey;
 	private final KeyMapping menuKey;
 	private final KeyMapping nextSlotKey;
@@ -113,6 +114,7 @@ public final class ChestEspMod
 			
 			updateAutoSprint();
 			autoRtp.update(configHolder.get());
+			autoTrade.update(configHolder.get());
 		});
 		
 		plausible = new PlausibleAnalytics(configHolder, groups, toggleKey);
@@ -420,6 +422,11 @@ public final class ChestEspMod
 	public ChestEspAutoRtp getAutoRtp()
 	{
 		return autoRtp;
+	}
+	
+	public ChestEspAutoTrade getAutoTrade()
+	{
+		return autoTrade;
 	}
 	
 	// Manually cycles to the next hotbar slot within the configured range

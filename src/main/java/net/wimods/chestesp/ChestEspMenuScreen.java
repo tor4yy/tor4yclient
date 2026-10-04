@@ -59,6 +59,8 @@ public final class ChestEspMenuScreen extends Screen
 	private static boolean oreExpanded = false;
 	private static boolean spawnerFinderExpanded = false;
 	private static boolean autoRtpExpanded = false;
+	private static boolean autoSellExpanded = false;
+	private static boolean autoBuyExpanded = false;
 	private static boolean hotbarExpanded = false;
 	
 	private final List<RowBuilder> rows = new ArrayList<>();
@@ -243,6 +245,52 @@ public final class ChestEspMenuScreen extends Screen
 		{
 			addRtpCommandRow(ch);
 			addRtpIntervalRow(ch);
+		}
+		
+		boolean sellOn = ch.get().auto_sell_enabled;
+		addCategoryRow("Auto Sell", autoSellExpanded,
+			() -> autoSellExpanded = !autoSellExpanded, sellOn, on -> {
+				ch.get().auto_sell_enabled = on;
+				ch.save();
+			});
+		
+		if(sellOn && autoSellExpanded)
+		{
+			addTextFieldRow("Sell command", () -> ch.get().auto_sell_command,
+				value -> {
+					ch.get().auto_sell_command = value;
+					ch.save();
+				});
+			addTextFieldRow("Item name(s)", () -> ch.get().auto_sell_item_name,
+				value -> {
+					ch.get().auto_sell_item_name = value;
+					ch.save();
+				});
+			addIntervalRow("Every", ch.get().auto_sell_interval_seconds,
+				val -> {
+					ch.get().auto_sell_interval_seconds = val;
+					ch.save();
+				});
+		}
+		
+		boolean buyOn = ch.get().auto_buy_enabled;
+		addCategoryRow("Auto Buy", autoBuyExpanded,
+			() -> autoBuyExpanded = !autoBuyExpanded, buyOn, on -> {
+				ch.get().auto_buy_enabled = on;
+				ch.save();
+			});
+		
+		if(buyOn && autoBuyExpanded)
+		{
+			addTextFieldRow("Buy command", () -> ch.get().auto_buy_command,
+				value -> {
+					ch.get().auto_buy_command = value;
+					ch.save();
+				});
+			addIntervalRow("Every", ch.get().auto_buy_interval_seconds, val -> {
+				ch.get().auto_buy_interval_seconds = val;
+				ch.save();
+			});
 		}
 		
 		addSectionRow("Hotbar", hotbarExpanded,
@@ -460,6 +508,69 @@ public final class ChestEspMenuScreen extends Screen
 				return RTP_INTERVALS[(i + 1) % RTP_INTERVALS.length];
 			
 		return RTP_INTERVALS[0];
+	}
+	
+	@FunctionalInterface
+	private interface TextSetter
+	{
+		void set(String value);
+	}
+	
+	@FunctionalInterface
+	private interface TextGetter
+	{
+		String get();
+	}
+	
+	@FunctionalInterface
+	private interface IntSetter
+	{
+		void set(int value);
+	}
+	
+	// Free-text field, saved on every keystroke via EditBox's responder, so
+	// it survives the menu being rebuilt without needing to keep the same
+	// widget instance across rebuilds.
+	private void addTextFieldRow(String hint, TextGetter getter,
+		TextSetter setter)
+	{
+		int indent = PAD + 16;
+		int width = PANEL_W - indent - PAD;
+		
+		rows.add(y -> {
+			EditBox box = new EditBox(font, panelX + indent, y, width, ROW_H,
+				Component.literal(hint));
+			box.setMaxLength(96);
+			box.setValue(getter.get());
+			box.setResponder(setter::set);
+			addRenderableWidget(box);
+		});
+	}
+	
+	private static final int[] TRADE_INTERVALS =
+		{1, 2, 3, 5, 10, 15, 30, 60, 120, 300};
+	
+	private void addIntervalRow(String label, int value, IntSetter setter)
+	{
+		int indent = PAD + 16;
+		int width = PANEL_W - indent - PAD;
+		
+		rows.add(y -> addRenderableWidget(Button.builder(
+			Component.literal(label + ": ").append(
+				Component.literal(value + "s").withStyle(ChatFormatting.AQUA)),
+			btn -> {
+				setter.set(nextTradeInterval(value));
+				rebuild();
+			}).bounds(panelX + indent, y, width, ROW_H).build()));
+	}
+	
+	private static int nextTradeInterval(int current)
+	{
+		for(int i = 0; i < TRADE_INTERVALS.length; i++)
+			if(TRADE_INTERVALS[i] == current)
+				return TRADE_INTERVALS[(i + 1) % TRADE_INTERVALS.length];
+			
+		return TRADE_INTERVALS[0];
 	}
 	
 	// A single non-interactive line, used for the spawner coordinate list.

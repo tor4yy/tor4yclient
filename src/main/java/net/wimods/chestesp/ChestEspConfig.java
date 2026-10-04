@@ -226,6 +226,23 @@ public final class ChestEspConfig implements ConfigData
 	
 	public int auto_rtp_interval_minutes = 5;
 	
+	// Auto Sell / Auto Buy: periodic command sending. See
+	// ChestEspAutoTrade. Auto Buy only repeats a fixed command on a timer -
+	// it does not read or snipe any shop/auction-house listing.
+	public boolean auto_sell_enabled = false;
+	
+	public String auto_sell_command = "/sell hand";
+	
+	public String auto_sell_item_name = "";
+	
+	public int auto_sell_interval_seconds = 3;
+	
+	public boolean auto_buy_enabled = false;
+	
+	public String auto_buy_command = "";
+	
+	public int auto_buy_interval_seconds = 30;
+	
 	@ConfigEntry.Gui.Tooltip
 	public boolean plausible = true;
 }
